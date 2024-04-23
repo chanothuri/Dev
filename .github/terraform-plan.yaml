@@ -1,0 +1,32 @@
+name: Terraform Plan
+ 
+on:
+  pull_request:
+    branches:
+      - main
+ 
+jobs:
+  terraform-plan:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, uat, prod]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v1
+        with: 
+          terraform_version:1.4.7
+      
+      - name: List modified files
+        id: list-files
+        run: |
+          git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-${{ github.event.pull_request.number }}
+          git diff --name-only main...pr-${{ github.event.pull_request.number }} > modified_files.txt
+          cat modified_files.txt
+ 
+      - name: Terraform plan
+        if: ${{ contains(steps.list-files.outputs.stdout, 'environments/' + matrix.environment + '.yml') }}
+        run: |
+          find src -type d -name "${{ matrix.environment }}" -exec sh -c 'cd "{}" && terraform plan' \;
